@@ -11,7 +11,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-var startCamera = 0
+var recording = 0
 
 func main() {
 	router := mux.NewRouter()
@@ -26,6 +26,25 @@ func startRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(405), 405)
 		return
 	}
+	go recordFromCamera()
+}
+
+func stopRecord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
+	stopCamera()
+}
+
+func getRecord(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
+}
+
+func recordFromCamera() {
 	webcam, err := gocv.OpenVideoCapture(0)
 	if err != nil {
 		fmt.Printf("Error on opening video capture.")
@@ -41,14 +60,14 @@ func startRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileName := strconv.FormatInt(time.Now().Unix(), 10) + ".avi"
-	writer, err := gocv.VideoWriterFile(fileName, "MJPG", 25, img.Cols(), img.Rows(), true)
+	writer, err := gocv.VideoWriterFile(fileName, "MJPG", 30, img.Cols(), img.Rows(), true)
 	if err != nil {
 		fmt.Printf("Error opening video writer device")
 		return
 	}
 	defer writer.Close()
-	startCamera = 1
-	for startCamera > 0 {
+	startCamera()
+	for recording > 0 {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("Device closed.")
 			return
@@ -56,22 +75,14 @@ func startRecord(w http.ResponseWriter, r *http.Request) {
 		if img.Empty() {
 			continue
 		}
-
 		writer.Write(img)
 	}
 }
 
-func stopRecord(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
-	startCamera = 0
+func startCamera() {
+	recording = 1
 }
 
-func getRecord(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
+func stopCamera() {
+	recording = 0
 }
